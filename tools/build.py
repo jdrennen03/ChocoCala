@@ -45,6 +45,9 @@ def main() -> None:
     src = SRC.read_text(encoding="utf-8")
     glb64 = base64.b64encode(GLB.read_bytes()).decode("ascii")
     src = src.replace("__GLB_B64__", glb64)
+    for name in ("hop", "fanfare", "chirp"):
+        snd = ROOT / "src" / "assets" / "sounds" / f"{name}.mp3"
+        src = src.replace(f"__SND_{name.upper()}__", base64.b64encode(snd.read_bytes()).decode("ascii"))
 
     local = src
     inline = src

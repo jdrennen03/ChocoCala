@@ -77,10 +77,51 @@ h1 span { color: var(--leaf); }
   padding: 20px; color: #2b1d0f; font-weight: 800; background: rgba(196,165,122,.6);
 }
 .board3d .reset {
-  position: absolute; top: 8px; right: 8px; min-height: 36px; padding: 6px 12px; font-size: .8rem;
+  position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: max(8px, env(safe-area-inset-right, 0px));
+  min-height: 36px; padding: 6px 12px; font-size: .8rem;
   background: rgba(23,20,15,.72); border-color: rgba(239,227,196,.25);
 }
-.board3d .helpbtn { right: auto; left: 8px; }
+.board3d .helpbtn { right: auto; left: max(8px, env(safe-area-inset-left, 0px)); }
+
+/* Overlay that holds the buttons, HUD and result bar. It turns 180° for Player 2 in a 2-player game. */
+.overlay { position: absolute; inset: 0; pointer-events: none; transition: transform .8s cubic-bezier(.65,0,.35,1); }
+.overlay > * { pointer-events: auto; }
+.overlay.flipped { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) { .overlay { transition: none; } }
+
+/* HUD: scores and whose turn it is */
+.hud {
+  position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%);
+  display: flex; align-items: stretch; gap: 6px; pointer-events: none !important; max-width: calc(100% - 260px);
+}
+.hud[hidden] { display: none; }
+.hud .hs {
+  display: flex; align-items: center; gap: 8px; padding: 4px 12px; border-radius: 999px;
+  background: rgba(23,20,15,.78); border: 2px solid transparent; color: var(--parch); white-space: nowrap;
+  transition: border-color .2s, box-shadow .2s;
+}
+.hud .hs b { font-family: var(--font-display); font-size: 1.35rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.hud .hs .nm { font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; }
+.hud .hs.you { border-color: rgba(91,154,69,.8); }
+.hud .hs.ai { border-color: rgba(180,73,61,.85); }
+.hud .hs.active { box-shadow: 0 0 0 3px var(--gold); }
+.hud .hmsg {
+  display: flex; align-items: center; justify-content: center; text-align: center; min-width: 0;
+  padding: 4px 12px; border-radius: 12px; background: rgba(23,20,15,.6); color: #fff;
+  font-weight: 800; font-size: .82rem; line-height: 1.2;
+}
+@media (max-aspect-ratio: 1/1) {
+  .hud { top: calc(max(8px, env(safe-area-inset-top, 0px)) + 46px); max-width: calc(100% - 16px); }
+}
+
+/* Game mode: the 3D board fills the screen and only the overlay is shown. */
+body.playing { overflow: hidden; padding: 0; }
+body.playing .wrap { max-width: none; }
+body.playing .wrap > :not(.board3d) { display: none !important; }
+body.playing .wrap > .board3d {
+  position: fixed; inset: 0; z-index: 30; margin: 0; border-radius: 0;
+  aspect-ratio: auto; height: auto; max-height: none; min-height: 0;
+}
 .board3d .helpbtn[aria-pressed="true"] { background: rgba(242,196,90,.92); color: #1b1408; border-color: transparent; }
 .board3d .reset[hidden] { display: none; }
 .hint { text-align: center; font-size: .78rem; color: var(--parch-dim); margin-top: -8px; }
@@ -224,15 +265,22 @@ h1.big span { color: var(--leaf); }
 
   <div class="board3d" id="board3d">
     <div class="loading" id="loading">Building the board…</div>
-    <button class="reset" id="resetview" type="button">Reset view</button>
-    <button class="reset helpbtn" id="helpbtn" type="button" aria-pressed="true">Help: On</button>
-    <div class="result" id="result" hidden>
-      <h2 id="result-title">You win!</h2>
-      <div class="tally" id="result-tally"></div>
-      <div class="earn" id="result-earn"></div>
-      <div class="row">
-        <button class="primary" id="again" type="button">Play again</button>
-        <button id="totitle2" type="button">Title screen</button>
+    <div class="overlay" id="overlay">
+      <button class="reset" id="resetview" type="button">Reset view</button>
+      <button class="reset helpbtn" id="helpbtn" type="button" aria-pressed="true">Help: On</button>
+      <div class="hud" id="hud" hidden aria-live="polite">
+        <div class="hs you" id="hs-you"><span class="nm" id="hn-you">You</span><b id="hp-you">0</b></div>
+        <div class="hmsg" id="hud-msg"></div>
+        <div class="hs ai" id="hs-ai"><b id="hp-ai">0</b><span class="nm" id="hn-ai">Rival</span></div>
+      </div>
+      <div class="result" id="result" hidden>
+        <h2 id="result-title">You win!</h2>
+        <div class="tally" id="result-tally"></div>
+        <div class="earn" id="result-earn"></div>
+        <div class="row">
+          <button class="primary" id="again" type="button">Play again</button>
+          <button id="totitle2" type="button">Title screen</button>
+        </div>
       </div>
     </div>
   </div>
@@ -246,7 +294,7 @@ h1.big span { color: var(--leaf); }
     <button id="totitle">Title screen</button>
   </div>
   <p class="modeline" id="modeline"></p>
-  <p class="keys">Keys: <kbd>1</kbd>–<kbd>8</kbd> pick an Area · <kbd>Enter</kbd> sow · <kbd>H</kbd> help · <kbd>R</kbd> reset view</p>
+  <p class="keys">Keys: <kbd>1</kbd>–<kbd>8</kbd> pick an Area · <kbd>Enter</kbd> sow · <kbd>H</kbd> help · <kbd>R</kbd> reset view · <kbd>Esc</kbd> title screen</p>
 
   <div class="legend" id="legend"></div>
 
@@ -314,6 +362,14 @@ h1.big span { color: var(--leaf); }
       </div>
     </fieldset>
 
+    <fieldset class="opt">
+      <legend>Sound</legend>
+      <div class="choices two">
+        <button type="button" class="choice" data-k="sound" data-v="on"><b>On</b></button>
+        <button type="button" class="choice" data-k="sound" data-v="off"><b>Off</b></button>
+      </div>
+    </fieldset>
+
     <button type="button" class="primary start" id="start" disabled>Loading the board…</button>
   </div>
 </div>
@@ -322,6 +378,9 @@ h1.big span { color: var(--leaf); }
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script id="chocobo-glb" type="application/octet-stream">__GLB_B64__</script>
+<script id="snd-hop" type="application/octet-stream">__SND_HOP__</script>
+<script id="snd-fanfare" type="application/octet-stream">__SND_FANFARE__</script>
+<script id="snd-chirp" type="application/octet-stream">__SND_CHIRP__</script>
 <script>
 (() => {
   // ----- Board layout: flat-top hexes in 5 columns, like the in-game table -----
@@ -383,7 +442,7 @@ h1.big span { color: var(--leaf); }
   const VALUES = { first: [1, 2, 3], second: [1, 3, 4] };
   let first = 'you';
   const tierVal = (tier, p) => (p === first ? VALUES.first : VALUES.second)[tier];
-  const settings = { players: 1, mode: 'scoring', level: 'normal', first: 'you' };
+  const settings = { players: 1, mode: 'scoring', level: 'normal', first: 'you', sound: 'on' };
   const val = (t, p) => (settings.mode === 'classic' ? 1 : tierVal(TYPES[t].tier, p));
   const NAME = p => (settings.players === 2 ? (p === 'you' ? 'Player 1' : 'Player 2') : (p === 'you' ? 'You' : 'Rival'));
   const isHuman = p => p === 'you' || settings.players === 2;
@@ -476,7 +535,8 @@ h1.big span { color: var(--leaf); }
     if (c.kind === 'base') {
       // Landing spot just inside the gate; the chocobo then wanders off around the corral.
       const col = k % 3, row = Math.floor(k / 3) % 5;
-      return new THREE.Vector3(x + (col - 1) * 0.4, PEN_FLOOR, z + 1.0 - row * 0.45);
+      const f = (cellParts[i] && cellParts[i].flip) || 1;
+      return new THREE.Vector3(x + (col - 1) * 0.4, PEN_FLOOR, z + f * (1.0 - row * 0.45));
     }
     const col = k % 3, row = Math.floor(k / 3) % 3, layer = Math.floor(k / 9);
     return new THREE.Vector3(x + (col - 1) * 0.36, HEX_TOP + layer * 0.42, z + 0.36 - row * 0.36);
@@ -492,6 +552,10 @@ h1.big span { color: var(--leaf); }
   let marksGroup, hopGroup;
   let viewBoard = null;
   const hl = { legal: new Set(), sel: null, flash: new Map() };
+  // Which side of the table the camera views from: +1 = Player 1 / You (front), -1 = Player 2 (back).
+  let viewSide = 1;
+  let faceTarget = 0, faceNow = 0;   // heading the chocobos on the Areas turn to (towards the viewer)
+  let camTween = null;               // active camera move (turn change), blocks taps while running
 
   function canvasTex(w, h, draw) {
     const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
@@ -687,6 +751,7 @@ h1.big span { color: var(--leaf); }
         const corral = buildCorral(c, x, z);
         scene.add(corral.group);
         part.tileMat = corral.floorMat; part.rimMat = corral.capMat; part.signMat = corral.signMat;
+        part.corral = corral.group; part.flip = 1;
       } else {
         const [deep, light] = TILE_COL[c.owner];
         const rimMat = new THREE.MeshStandardMaterial({ color: lin(0x3a281b), roughness: 0.75 });
@@ -749,18 +814,83 @@ h1.big span { color: var(--leaf); }
     camera.updateProjectionMatrix();
     if (!controls.userMoved) resetView();
   }
-  function resetView() {
-    // Fit the full table width (about 13 units) at a 52° tilt.
+  // Camera pose that fits the whole table (about 13 units wide) at a 60° tilt, seen from side v.
+  function viewFor(v) {
     const halfW = 6.35, tilt = 60 * Math.PI / 180;
     const vfov = camera.fov * Math.PI / 180;
     const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
     const d = Math.max(halfW / Math.tan(hfov / 2), 2.6 / Math.tan(vfov / 2));
-    controls.target.set(0, 0, 0.25);
-    camera.position.set(0, Math.sin(tilt) * d, 0.25 + Math.cos(tilt) * d);
+    return {
+      target: new THREE.Vector3(0, 0, 0.25 * v),
+      pos: new THREE.Vector3(0, Math.sin(tilt) * d, (0.25 + Math.cos(tilt) * d) * v),
+    };
+  }
+  function setAzimuthLimits() {
+    const c = viewSide > 0 ? 0 : Math.PI;
+    controls.minAzimuthAngle = c - 1.2; controls.maxAzimuthAngle = c + 1.2;
+  }
+  function resetView() {
+    if (camTween) return;
+    const view = viewFor(viewSide);
+    controls.target.copy(view.target);
+    camera.position.copy(view.pos);
     camera.lookAt(controls.target);
+    setAzimuthLimits();
     controls.update();
     controls.userMoved = false;
   }
+  // Swing the camera up and over the board to the other player's side.
+  function flipView(v, animate = true) {
+    if (v === viewSide && !camTween) return Promise.resolve();
+    viewSide = v;
+    faceTarget = v > 0 ? 0 : Math.PI;
+    document.getElementById('overlay').classList.toggle('flipped', v < 0);
+    if (!animate || !renderer) { if (!animate) faceNow = faceTarget; resetView(); return Promise.resolve(); }
+    const t0 = controls.target.clone();
+    const s0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t0));
+    const dest = viewFor(v);
+    const s1 = new THREE.Spherical().setFromVector3(dest.pos.clone().sub(dest.target));
+    let dTheta = s1.theta - s0.theta;
+    while (dTheta > Math.PI) dTheta -= Math.PI * 2;
+    while (dTheta < -Math.PI) dTheta += Math.PI * 2;
+    if (Math.abs(dTheta) < 0.01) dTheta = Math.PI;
+    controls.enabled = false;
+    const start = performance.now(), dur = reduceMotion ? 1 : 1600;
+    return new Promise(resolve => {
+      camTween = {
+        update(now) {
+          const u = Math.min(1, (now - start) / dur), e = ease(u);
+          const target = t0.clone().lerp(dest.target, e);
+          const sph = new THREE.Spherical(
+            s0.radius + (s1.radius - s0.radius) * e,
+            Math.max(0.08, s0.phi + (s1.phi - s0.phi) * e - Math.sin(Math.PI * u) * 0.6),
+            s0.theta + dTheta * e);
+          camera.position.setFromSpherical(sph).add(target);
+          controls.target.copy(target);
+          camera.lookAt(target);
+          if (u >= 1) {
+            camTween = null;
+            controls.enabled = true;
+            setAzimuthLimits();
+            controls.update();
+            controls.userMoved = false;
+            resolve();
+          }
+        },
+      };
+    });
+  }
+  // In a 2-player game the second player's corral is turned to face them.
+  function orientCorrals() {
+    for (const p of ['you', 'ai']) {
+      const part = cellParts[BASE[p]];
+      if (!part || !part.corral) continue;
+      part.flip = p === 'ai' && settings.players === 2 ? -1 : 1;
+      part.corral.rotation.y = part.flip < 0 ? Math.PI : 0;
+      part.count.position.z = cellZ(CELLS[BASE[p]]) - part.flip * 1.45;
+    }
+  }
+  const sideFor = p => (settings.players === 2 && p === 'ai' ? -1 : 1);
 
   function bindPicking() {
     const el = renderer.domElement;
@@ -772,7 +902,7 @@ h1.big span { color: var(--leaf); }
       if (!down) return;
       const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
       down = null;
-      if (moved > 8) return;
+      if (moved > 8 || camTween) return;
       const rect = el.getBoundingClientRect();
       ndc.set(((e.clientX - rect.left) / rect.width) * 2 - 1, -((e.clientY - rect.top) / rect.height) * 2 + 1);
       ray.setFromCamera(ndc, camera);
@@ -896,8 +1026,9 @@ h1.big span { color: var(--leaf); }
         const piece = makePiece(t);
         piece.position.copy(slotPos(i, k));
         piece.userData.y = piece.position.y;
-        // small natural variation in heading
-        piece.rotation.y = (piece.userData.phase - Math.PI) * 0.08;
+        // face the current viewer, with a small natural variation in heading
+        piece.userData.yaw0 = (piece.userData.phase - Math.PI) * 0.08;
+        piece.rotation.y = faceNow + piece.userData.yaw0;
         part.pieces.add(piece);
       });
     }
@@ -937,12 +1068,143 @@ h1.big span { color: var(--leaf); }
     for (const j in at) {
       const c = CELLS[j];
       const s = chipSprite(at[j]);
-      s.position.set(cellX(c), c.kind === 'base' ? 1.3 : 1.0, cellZ(c) + (c.kind === 'base' ? 0.6 : 0));
+      s.position.set(cellX(c), c.kind === 'base' ? 1.3 : 1.0, cellZ(c) + (c.kind === 'base' ? 0.6 * (cellParts[j].flip || 1) : 0));
       marksGroup.add(s);
     }
   }
 
+  // ----- Sound: hop blink, victory fanfare and chirping, synthesized fireworks -----
+  const sound = { ctx: null, master: null, buffers: {}, noise: null, chirp: null, hops: 0 };
+  const soundOn = () => settings.sound !== 'off';
+  // Create/resume the audio context. Must first run inside a tap or click.
+  function unlockAudio() {
+    if (!sound.ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      try { sound.ctx = new AC(); } catch (e) { return; }
+      sound.master = sound.ctx.createGain();
+      sound.master.gain.value = 0.85;
+      sound.master.connect(sound.ctx.destination);
+      for (const name of ['hop', 'fanfare', 'chirp']) {
+        const el = document.getElementById('snd-' + name);
+        if (!el || el.textContent.length < 100) continue;
+        try {
+          sound.ctx.decodeAudioData(b64ToBuffer(el.textContent), buf => { sound.buffers[name] = buf; }, () => {});
+        } catch (e) {}
+      }
+    }
+    if (sound.ctx.state === 'suspended') sound.ctx.resume().catch(() => {});
+  }
+  function output(gain, pan) {
+    const ctx = sound.ctx;
+    const g = ctx.createGain();
+    g.gain.value = gain;
+    if (pan && ctx.createStereoPanner) {
+      const pn = ctx.createStereoPanner();
+      pn.pan.value = Math.max(-0.9, Math.min(0.9, pan));
+      g.connect(pn); pn.connect(sound.master);
+    } else g.connect(sound.master);
+    return g;
+  }
+  function playSound(name, { rate = 1, gain = 1, loop = false, pan = 0 } = {}) {
+    if (!soundOn() || !sound.ctx || !sound.buffers[name]) return null;
+    const src = sound.ctx.createBufferSource();
+    src.buffer = sound.buffers[name];
+    src.playbackRate.value = rate;
+    src.loop = loop;
+    const g = output(gain, pan);
+    src.connect(g);
+    src.start();
+    return { src, g };
+  }
+  // Stereo position of a world x as the current viewer hears it.
+  const panFor = x => (x / 7) * viewSide;
+  function hopSound(x) {
+    if (sound.hops >= 3) return;         // keep long sows from turning into a wall of noise
+    const s = playSound('hop', { rate: 0.95 + Math.random() * 0.2, gain: 0.5, pan: panFor(x) });
+    if (!s) return;
+    sound.hops++;
+    s.src.onended = () => { sound.hops--; };
+  }
+  function startVictorySound() {
+    playSound('fanfare', { gain: 0.9 });
+    stopChirp();
+    const ctx = sound.ctx;
+    sound.chirp = playSound('chirp', { gain: 0, loop: true });
+    if (sound.chirp) {
+      const t = ctx.currentTime;
+      sound.chirp.g.gain.setValueAtTime(0, t);
+      sound.chirp.g.gain.linearRampToValueAtTime(0.5, t + 1.2);
+    }
+  }
+  function stopChirp() {
+    if (!sound.chirp) return;
+    const { src, g } = sound.chirp, t = sound.ctx.currentTime;
+    sound.chirp = null;
+    try {
+      g.gain.cancelScheduledValues(t);
+      g.gain.setValueAtTime(g.gain.value, t);
+      g.gain.linearRampToValueAtTime(0, t + 0.4);
+      src.stop(t + 0.45);
+    } catch (e) {}
+  }
+  // A firework: low thump, a filtered noise bang, then a scatter of crackles.
+  function boomSound(x, dist) {
+    if (!soundOn() || !sound.ctx || sound.ctx.state !== 'running') return;
+    const ctx = sound.ctx;
+    if (!sound.noise) {
+      const len = Math.floor(ctx.sampleRate * 1.5);
+      sound.noise = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = sound.noise.getChannelData(0);
+      for (let k = 0; k < len; k++) d[k] = Math.random() * 2 - 1;
+    }
+    const t = ctx.currentTime + 0.05 + dist * 0.015;
+    const out = output(0.55 * Math.max(0.45, 1 - dist / 22), panFor(x));
+
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(110 + Math.random() * 30, t);
+    osc.frequency.exponentialRampToValueAtTime(38, t + 0.45);
+    const og = ctx.createGain();
+    og.gain.setValueAtTime(0.0001, t);
+    og.gain.exponentialRampToValueAtTime(0.9, t + 0.012);
+    og.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+    osc.connect(og); og.connect(out);
+    osc.start(t); osc.stop(t + 0.75);
+
+    const n = ctx.createBufferSource();
+    n.buffer = sound.noise;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.setValueAtTime(3200, t);
+    lp.frequency.exponentialRampToValueAtTime(260, t + 0.9);
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.75, t + 0.006);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 1.1);
+    n.connect(lp); lp.connect(ng); ng.connect(out);
+    n.start(t, Math.random() * 0.3, 1.2);
+
+    for (let k = 0; k < 12; k++) {
+      const tt = t + 0.25 + Math.random() * 0.95;
+      const c = ctx.createBufferSource();
+      c.buffer = sound.noise;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 2500 + Math.random() * 3500;
+      const cg = ctx.createGain();
+      cg.gain.setValueAtTime(0.0001, tt);
+      cg.gain.exponentialRampToValueAtTime(0.06 + Math.random() * 0.22, tt + 0.003);
+      cg.gain.exponentialRampToValueAtTime(0.0001, tt + 0.05 + Math.random() * 0.04);
+      c.connect(hp); hp.connect(cg); cg.connect(out);
+      c.start(tt, Math.random() * 1.2, 0.1);
+    }
+  }
+  // Any tap keeps the audio context awake (mobile browsers suspend it in the background).
+  document.addEventListener('pointerdown', () => { if (sound.ctx && soundOn()) unlockAudio(); }, { passive: true });
+
   function hop(type, from, to, dest) {
+    hopSound(dest.x);
     return new Promise(resolve => {
       const piece = makePiece(type);
       const c = CELLS[from];
@@ -966,6 +1228,8 @@ h1.big span { color: var(--leaf); }
   function roam(i, now, dt) {
     if (celeb.on && celeb.winner === i) return dance(i, now, dt);
     const c = CELLS[i], cx = cellX(c), cz = cellZ(c);
+    const f = cellParts[i].flip || 1;
+    const zlo = cz + (f > 0 ? PEN.roamZ0 : -PEN.roamZ1), zhi = cz + (f > 0 ? PEN.roamZ1 : -PEN.roamZ0);
     const kids = cellParts[i].pieces.children;
     for (const p of kids) {
       const w = p.userData.w;
@@ -986,7 +1250,7 @@ h1.big span { color: var(--leaf); }
         if (d < 0.05) {
           w.pause = now + 700 + Math.random() * 2600;
           w.tx = cx + (Math.random() * 2 - 1) * PEN.roamX;
-          w.tz = cz + PEN.roamZ0 + Math.random() * (PEN.roamZ1 - PEN.roamZ0);
+          w.tz = zlo + Math.random() * (zhi - zlo);
         } else {
           const step = Math.min(d, 0.6 * dt);
           p.position.x += dx / d * step; p.position.z += dz / d * step;
@@ -1011,7 +1275,7 @@ h1.big span { color: var(--leaf); }
     }
     for (const p of kids) {
       p.position.x = Math.min(cx + PEN.roamX, Math.max(cx - PEN.roamX, p.position.x));
-      p.position.z = Math.min(cz + PEN.roamZ1, Math.max(cz + PEN.roamZ0, p.position.z));
+      p.position.z = Math.min(zhi, Math.max(zlo, p.position.z));
     }
   }
 
@@ -1023,31 +1287,37 @@ h1.big span { color: var(--leaf); }
   const ease = u => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
 
   function startCelebration(p) {
-    const i = BASE[p], cx = cellX(CELLS[i]), side = cx > 0 ? 1 : -1;
+    const i = BASE[p], cx = cellX(CELLS[i]);
+    // Work in the winner's frame (rotated 180° for Player 2), then map back to the world.
+    const v = sideFor(p), cxF = cx * v, side = cxF > 0 ? 1 : -1;
+    if (v !== viewSide) flipView(v, false);
+    camTween = null;
     const now = performance.now();
-    celeb.on = true; celeb.winner = i; celeb.t0 = now; celeb.nextBurst = now + 900;
+    celeb.on = true; celeb.winner = i; celeb.t0 = now; celeb.nextBurst = now + 900; celeb.v = v;
     controls.enabled = false;
     controls.minDistance = 0.8; controls.maxPolarAngle = 1.62;
     controls.minAzimuthAngle = -Infinity; controls.maxAzimuthAngle = Infinity;
     celeb.cam = {
       p0: camera.position.clone(), t0: controls.target.clone(),
-      p1: new THREE.Vector3(cx + side * 0.8, 1.25, 4.3), t1: new THREE.Vector3(cx - side * 0.15, 0.45, -0.4),
+      p1: new THREE.Vector3((cxF + side * 0.8) * v, 1.25, 4.3 * v), t1: new THREE.Vector3((cxF - side * 0.15) * v, 0.45, -0.4 * v),
       start: now, dur: reduceMotion ? 1 : 2400,
     };
     cellParts.forEach(part => part && (part.count.visible = false));
     renderMarks(null);
+    startVictorySound();
     document.getElementById('resetview').hidden = true;
     document.getElementById('helpbtn').hidden = true;
   }
   function stopCelebration() {
     if (!renderer) return;
     celeb.on = false; celeb.cam = null; celeb.winner = null;
+    stopChirp();
     fireworks.splice(0).forEach(f => { scene.remove(f.pts); f.pts.geometry.dispose(); f.pts.material.dispose(); });
     scene.background.copy(DAY); scene.fog.color.copy(DAY);
     hemi.intensity = 0.75; sun.intensity = 0.85;
     controls.enabled = true;
     controls.minDistance = 5; controls.maxPolarAngle = 1.3;
-    controls.minAzimuthAngle = -1.2; controls.maxAzimuthAngle = 1.2;
+    setAzimuthLimits();
     document.getElementById('resetview').hidden = false;
     document.getElementById('helpbtn').hidden = false;
     resetView();
@@ -1083,6 +1353,7 @@ h1.big span { color: var(--leaf); }
     pts.frustumCulled = false;
     scene.add(pts);
     fireworks.push({ pts, vel, life: 0, max: 1.7 + Math.random() * 0.6 });
+    boomSound(centre.x, centre.distanceTo(camera.position));
   }
   function updateCelebration(now, dt) {
     if (celeb.cam) {
@@ -1099,7 +1370,7 @@ h1.big span { color: var(--leaf); }
       hemi.intensity = 0.75 - 0.2 * night; sun.intensity = 0.85 - 0.25 * night;
       if (now > celeb.nextBurst && !reduceMotion) {
         const cx = cellX(CELLS[celeb.winner]);
-        spawnBurst(new THREE.Vector3(cx + (Math.random() * 2 - 1) * 4.5, 2.0 + Math.random() * 1.6, -5 - Math.random() * 3.5));
+        spawnBurst(new THREE.Vector3(cx + (Math.random() * 2 - 1) * 4.5, 2.0 + Math.random() * 1.6, (-5 - Math.random() * 3.5) * (celeb.v || 1)));
         celeb.nextBurst = now + 280 + Math.random() * 520;
       }
     }
@@ -1121,7 +1392,9 @@ h1.big span { color: var(--leaf); }
   }
   // The winning flock gathers in rotating rings and bounces, sways and twirls.
   function dance(i, now, dt) {
-    const c = CELLS[i], cx = cellX(c), cz = cellZ(c) + 0.2;
+    const fl = cellParts[i].flip || 1;
+    const c = CELLS[i], cx = cellX(c), cz = cellZ(c) + 0.2 * fl;
+    const zlo = cz + (fl > 0 ? -1.15 : -0.9), zhi = cz + (fl > 0 ? 0.9 : 1.15);
     const kids = cellParts[i].pieces.children, n = kids.length, t = now / 1000;
     const RINGS = [{ cap: 1, rx: 0, rz: 0 }, { cap: 7, rx: 0.32, rz: 0.5 }, { cap: 12, rx: 0.52, rz: 0.85 }, { cap: 99, rx: 0.6, rz: 1.05 }];
     let k = 0;
@@ -1130,7 +1403,7 @@ h1.big span { color: var(--leaf); }
       for (let m = 0; m < count; m++, k++) {
         const p = kids[k];
         const a = (m / count) * Math.PI * 2 + t * 0.7 * (r % 2 ? -1 : 1);
-        const tx = cx + Math.cos(a) * ring.rx, tz = Math.min(cz + 0.9, Math.max(cz - 1.15, cz + Math.sin(a) * ring.rz));
+        const tx = cx + Math.cos(a) * ring.rx, tz = Math.min(zhi, Math.max(zlo, cz + Math.sin(a) * ring.rz));
         const f = Math.min(1, dt * 5);
         p.position.x += (tx - p.position.x) * f;
         p.position.z += (tz - p.position.z) * f;
@@ -1157,10 +1430,15 @@ h1.big span { color: var(--leaf); }
       const f = hl.flash.get(i);
       part.tileMat.emissive.copy(f && now < f ? WHITE : BLACK).multiplyScalar(0.25);
       if (CELLS[i].kind === 'base') roam(i, now, dt);
-      else if (!reduceMotion) for (const p of part.pieces.children) p.position.y = p.userData.y + Math.max(0, Math.sin(t * 3 + p.userData.phase)) * 0.025;
+      else for (const p of part.pieces.children) {
+        if (!reduceMotion) p.position.y = p.userData.y + Math.max(0, Math.sin(t * 3 + p.userData.phase)) * 0.025;
+        p.rotation.y = faceNow + (p.userData.yaw0 || 0);
+      }
     });
+    faceNow = reduceMotion ? faceTarget : lerpAngle(faceNow, faceTarget, Math.min(1, dt * 2.5));
     updateCelebration(now, dt);
-    if (!celeb.cam) controls.update();
+    if (camTween) camTween.update(now);
+    else if (!celeb.cam) controls.update();
     renderer.render(scene, camera);
   }
   const flash = (i, ms = 260) => hl.flash.set(i, performance.now() + ms);
@@ -1185,14 +1463,6 @@ h1.big span { color: var(--leaf); }
   }
   let portraits = {};
 
-  function renderLegend() {
-    document.getElementById('legend').innerHTML = TIERS.map((T, tier) => {
-      const art = T.types.map(t => portraits[t] ? `<img src="${portraits[t]}" alt="">` : '').join('');
-      return `<div><span class="art">${art}</span><b>${T.label}</b>
-       <span class="v">${T.note}</span>
-       <span class="v">You <em>${tierVal(tier, 'you')}</em> · Rival <em>${tierVal(tier, 'ai')}</em> jingly</span></div>`;
-    }).join('');
-  }
 
   // ----- Area picker buttons (precise taps on small screens) -----
   // Listed along each player's own track.
@@ -1237,7 +1507,24 @@ h1.big span { color: var(--leaf); }
     }
     document.getElementById('confirm').disabled = !(canPlay && game.sel != null);
     renderMarks(canPlay ? game.sel : null);
+    updateHud(b);
     if (celeb.on) cellParts.forEach(part => part && (part.count.visible = false));
+  }
+
+  function updateHud(b = game.b) {
+    for (const p of ['you', 'ai']) {
+      document.getElementById('hn-' + p).textContent = NAME(p);
+      document.getElementById('hp-' + p).textContent = baseScore(b, p);
+      document.getElementById('hs-' + p).classList.toggle('active', game.turn === p && !game.over);
+    }
+    let msg;
+    if (game.over) msg = game.result || 'Game over';
+    else if (game.sel != null && isHuman(game.turn) && !game.busy) msg = `Tap ${CELLS[game.sel].id} again to sow`;
+    else {
+      const who = settings.players === 2 ? `${NAME(game.turn)}'s turn` : game.turn === 'you' ? 'Your turn' : 'Rival is thinking…';
+      msg = game.note ? `${game.note} · ${who}` : who;
+    }
+    document.getElementById('hud-msg').textContent = msg;
   }
 
   function renderLegend() {
@@ -1283,15 +1570,17 @@ h1.big span { color: var(--leaf); }
     stopCelebration();
     resultEl.hidden = true;
     first = settings.first;
-    game = { b: freshBoard(), turn: first, moves: 0, busy: false, over: false, sel: null };
+    game = { b: freshBoard(), turn: first, moves: 0, busy: false, over: false, sel: null, note: '' };
     picker.dataset.for = '';
+    flipView(sideFor(game.turn), false);
     renderLegend();
     render();
     if (!isHuman(game.turn)) aiTurn(); else say(promptFor(game.turn));
   }
 
   async function play(i, p) {
-    game.busy = true; game.sel = null;
+    const g = game;
+    game.busy = true; game.sel = null; game.note = '';
     const r = sow(game.b, i, p);
     const view = game.b.map(a => a.slice());
     const lifted = view[i]; view[i] = [];
@@ -1301,15 +1590,24 @@ h1.big span { color: var(--leaf); }
     for (let k = 0; k < r.drops.length; k++) {
       const j = r.drops[k], t = lifted[lifted.length - 1 - k];
       await hop(t, i, j, slotPos(j, view[j].length));
+      if (g !== game) return;
       view[j].push(t);
       renderCell(j, view);
       flash(j, 200);
       await wait(70);
     }
+    if (g !== game) return;
     game.b = r.b; game.moves++;
     if (!r.extra) game.turn = other(p);
+    game.note = r.extra ? (settings.players === 2 || p === 'you' ? 'Landed in the corral, go again!' : 'Rival goes again') : '';
+    if (!legal(game.b, game.turn).length || game.moves >= MAX_MOVES) { game.busy = false; return finish(); }
+    if (settings.players === 2 && sideFor(game.turn) !== viewSide) {
+      // Hand the table to the other player: camera swings over, chocobos turn, HUD flips.
+      render();
+      await flipView(sideFor(game.turn));
+      if (g !== game) return;
+    }
     game.busy = false;
-    if (!legal(game.b, game.turn).length || game.moves >= MAX_MOVES) return finish();
     render();
     if (!isHuman(game.turn)) {
       say(r.extra ? 'The Rival landed in its corral and goes again…' : 'The Rival is thinking…');
@@ -1353,6 +1651,7 @@ h1.big span { color: var(--leaf); }
           if (g !== game) return moved;
           base.push(t);
           renderCell(BASE[p], game.b);
+          updateHud();
           moved[p] += val(t, p);
         }
       }
@@ -1362,7 +1661,8 @@ h1.big span { color: var(--leaf); }
   }
 
   async function finish() {
-    game.over = true; game.sel = null; game.busy = true;
+    game.over = true; game.sel = null; game.busy = true; game.note = '';
+    game.result = 'Leftover chocobos head home…';
     render();
     const g = game;
     const boardEmpty = [0, 1, 2, 4, 5, 7, 8, 9].every(i => !game.b[i].length);
@@ -1376,6 +1676,8 @@ h1.big span { color: var(--leaf); }
       : `${NAME(game.turn)} ${settings.players === 1 && game.turn === 'you' ? 'have' : 'has'} no chocobos left to move.`;
     const sweptNote = swept.you || swept.ai ? ` Leftovers added: ${NAME('you')} +${swept.you}, ${NAME('ai')} +${swept.ai}.` : '';
     const winner = you > ai ? 'you' : ai > you ? 'ai' : null;
+    game.result = !winner ? 'A draw!' : settings.players === 2 ? `${NAME(winner)} wins!` : winner === 'you' ? 'You win!' : 'The Rival wins';
+    updateHud();
     let earn = '';
     if (settings.players === 1) { saveBank(loadBank() + you); showBank(); earn = `+${you} jingly added to your running total`; }
     document.getElementById('result-title').textContent = !winner ? 'A draw!'
@@ -1394,7 +1696,7 @@ h1.big span { color: var(--leaf); }
   }
 
   function tapCell(i) {
-    if (!game || !isHuman(game.turn) || game.busy || game.over) return;
+    if (!game || !isHuman(game.turn) || game.busy || game.over || camTween) return;
     if (!legal(game.b, game.turn).includes(i)) return;
     if (game.sel === i) return play(i, game.turn);
     game.sel = i;
@@ -1418,16 +1720,58 @@ h1.big span { color: var(--leaf); }
     settings[b.dataset.k] = b.dataset.k === 'players' ? +v : v;
     syncTitle();
   }));
+  // Game mode: landscape, full screen, board only. The Android app does this natively through ChocoCalaApp.
+  const nativeApp = window.ChocoCalaApp;
+  function enterPlay() {
+    document.body.classList.add('playing');
+    document.getElementById('hud').hidden = false;
+    if (nativeApp && nativeApp.setGameMode) {
+      try { nativeApp.setGameMode(true); } catch (e) {}
+    } else {
+      const el = document.documentElement;
+      if (el.requestFullscreen && !document.fullscreenElement) {
+        el.requestFullscreen({ navigationUI: 'hide' })
+          .then(() => screen.orientation && screen.orientation.lock ? screen.orientation.lock('landscape') : null)
+          .catch(() => {});
+      }
+      try { history.pushState({ chococala: 'play' }, ''); } catch (e) {}
+    }
+    requestAnimationFrame(() => { resize(); resetView(); });
+  }
+  function exitPlay() {
+    if (!document.body.classList.contains('playing')) return;
+    document.body.classList.remove('playing');
+    document.getElementById('hud').hidden = true;
+    camTween = null;
+    viewSide = 1; faceTarget = faceNow = 0;
+    document.getElementById('overlay').classList.remove('flipped');
+    if (nativeApp && nativeApp.setGameMode) {
+      try { nativeApp.setGameMode(false); } catch (e) {}
+    } else {
+      try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+      if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+    }
+  }
+  // Back button (Android app) / browser back / Escape: game -> title screen -> leave.
+  window.chococalaBack = () => {
+    if (document.body.classList.contains('playing')) { showTitle(); return true; }
+    if (nativeApp && nativeApp.exitApp) nativeApp.exitApp();
+    return false;
+  };
+  window.addEventListener('popstate', () => { if (document.body.classList.contains('playing')) showTitle(); });
+
   function showTitle() {
     clearTimeout(resultTimer);
-    if (game) { game.over = true; game.busy = false; }
+    if (game) game = Object.assign({}, game, { over: true, busy: false });   // abandons any move still animating
     stopCelebration();
+    exitPlay();
     resultEl.hidden = true;
     syncTitle();
     titleEl.hidden = false;
     startBtn.focus();
   }
   startBtn.addEventListener('click', () => {
+    if (soundOn()) unlockAudio();
     try { localStorage.setItem('mm-settings', JSON.stringify(settings)); } catch (e) {}
     titleEl.hidden = true;
     document.getElementById('bankwrap').hidden = settings.players === 2;
@@ -1436,6 +1780,8 @@ h1.big span { color: var(--leaf); }
       ? `2 Players · ${settings.mode === 'classic' ? 'Classic' : 'Scoring'} mode`
       : `1 Player · ${settings.mode === 'classic' ? 'Classic' : 'Scoring'} mode · Rival: ${lv}`;
     relabelCorrals();
+    orientCorrals();
+    enterPlay();
     newGame();
   });
 
@@ -1475,6 +1821,7 @@ h1.big span { color: var(--leaf); }
     }
     else if (k === 'h') helpBtn.click();
     else if (k === 'r' && controls && !celeb.on) resetView();
+    else if (k === 'escape' && !document.fullscreenElement && document.body.classList.contains('playing')) showTitle();
   });
 
   try {
@@ -1484,6 +1831,7 @@ h1.big span { color: var(--leaf); }
       if (saved.mode === 'classic' || saved.mode === 'scoring') settings.mode = saved.mode;
       if (['easy', 'normal', 'hard'].includes(saved.level)) settings.level = saved.level;
       if (saved.first === 'you' || saved.first === 'ai') settings.first = saved.first;
+      if (saved.sound === 'on' || saved.sound === 'off') settings.sound = saved.sound;
     }
   } catch (e) {}
   syncTitle();

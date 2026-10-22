@@ -25,7 +25,18 @@ The game needs WebGL, which every current desktop browser and Android phone supp
 - **Help toggle:** shows the Area 1–8 labels, the chocobo count on each Area, and where the selected move will send each chocobo.
 - **3D board:** drag to turn the table, pinch or scroll to zoom. Chocobos hop from Area to Area, and scored chocobos roam their corral.
 - **Victory scene:** night falls, the camera drops to ground level, and the winning flock dances while fireworks go off.
-- **Desktop layout:** big board on the left with the game panel on the right. Keyboard: <kbd>1</kbd>–<kbd>8</kbd> pick an Area, <kbd>Enter</kbd> sows, <kbd>H</kbd> toggles help, <kbd>R</kbd> resets the view.
+- **Full-screen game:** after *Start game* the board fills the screen in landscape. The only on-screen controls are *Help*, *Reset view* and a HUD showing both scores and whose turn it is.
+  - The Android app locks to landscape and hides the system bars.
+  - Browsers go full screen where they allow it.
+  - Back (Android) or <kbd>Esc</kbd> (desktop) returns to the title screen.
+- **2 players face to face:** lay the phone flat between you.
+  - When it's Player 2's turn, the camera swings over the board to their side, the chocobos turn to face them, and the HUD and buttons flip.
+  - Player 2's corral faces them, and if Player 2 wins, the victory scene plays from their side.
+- **Sound:**
+  - Each chocobo hop plays a sound.
+  - The victory scene has a fanfare, chirping chocobos and firework explosions.
+  - Sound can be switched on or off on the title screen.
+- **Desktop keys:** <kbd>1</kbd>–<kbd>8</kbd> pick an Area, <kbd>Enter</kbd> sows, <kbd>H</kbd> toggles help, <kbd>R</kbd> resets the view, <kbd>Esc</kbd> returns to the title screen.
 
 ## Rules
 
@@ -53,6 +64,7 @@ The game needs WebGL, which every current desktop browser and Android phone supp
 ```
 src/chococala.html      Game source (HTML/CSS/JS, three.js r128)
 src/assets/chocobo.glb  Chocobo 3D model (embedded into the builds)
+src/assets/sounds/      Hop, fanfare and chirp sounds (embedded into the builds)
 tools/build.py          Builds docs/, dist/ChocoCala.html and android/assets/
 docs/                   Web / desktop version (+ vendor/three.js files)
 android/                Android app: a WebView activity (smali) and build tools
@@ -78,6 +90,11 @@ Set `KEYSTORE`, `KEYSTORE_PASS` and `KEY_ALIAS` to sign with your own key. Andro
 
 - Chocobo model: ["Chocobo from World of Final Fantasy"](https://sketchfab.com/3d-models/chocobo-from-world-of-final-fantasy-329f0b6d71f245e89ff6cf8371180025) by Robukan, licensed [CC BY 4.0](http://creativecommons.org/licenses/by/4.0/). It is recoloured per piece type.
 - [three.js](https://threejs.org) r128, MIT licence (`docs/vendor/LICENSE-three.txt`).
+- Sound effects:
+  - "Cartoon Blinking" by Dragon Studio (hop)
+  - "Victory Fanfare" by Universfield
+  - "Bird Sing in Cartoon" by Pixelpond (chirping)
+  - The firework explosions are synthesized in the game.
 - Game rules adapted from Mandragora Mania in Final Fantasy XI.
 
 ChocoCala is an unofficial fan project and is not affiliated with Square Enix. Final Fantasy, chocobo and Mandragora Mania are trademarks of Square Enix.
