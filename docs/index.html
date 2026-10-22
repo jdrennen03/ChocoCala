@@ -1164,7 +1164,7 @@ h1.big span { color: var(--leaf); }
   const panFor = x => (x / 7) * viewSide;
   function hopSound(x) {
     if (sound.hops >= 3) return;         // keep long sows from turning into a wall of noise
-    const s = playSound('hop', { rate: 0.95 + Math.random() * 0.2, gain: 0.2, pan: panFor(x) });
+    const s = playSound('hop', { rate: 0.95 + Math.random() * 0.2, gain: 0.1, pan: panFor(x) });
     if (!s) return;
     sound.hops++;
     s.src.onended = () => { sound.hops--; };
