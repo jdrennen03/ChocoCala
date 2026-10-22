@@ -95,6 +95,22 @@ h1 span { color: var(--leaf); }
   background: rgba(23,20,15,.72); border-color: rgba(239,227,196,.25);
 }
 .board3d .helpbtn { right: auto; left: max(8px, env(safe-area-inset-left, 0px)); }
+.board3d .menubtn { top: auto; right: auto; bottom: max(8px, env(safe-area-inset-bottom, 0px)); left: max(8px, env(safe-area-inset-left, 0px)); }
+body:not(.playing) .board3d .menubtn { display: none; }
+
+/* "Leave this game?" prompt */
+.confirm {
+  position: absolute; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center;
+  padding: 16px; background: rgba(10,8,5,.6);
+}
+.confirm[hidden] { display: none; }
+.confirm .cbox {
+  background: var(--soil-2); border: 1px solid rgba(242,196,90,.5); border-radius: 16px;
+  padding: 18px 20px; max-width: 340px; width: 100%; text-align: center; display: flex; flex-direction: column; gap: 8px;
+}
+.confirm h3 { font-family: var(--font-display); font-size: 1.4rem; margin: 0; color: var(--gold); }
+.confirm p { margin: 0; color: var(--parch-dim); font-size: .9rem; }
+.confirm .row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 6px; }
 
 /* Overlay that holds the buttons, HUD and result bar. It turns 180° for Player 2 in a 2-player game. */
 .overlay { position: absolute; inset: 0; pointer-events: none; transition: transform .8s cubic-bezier(.65,0,.35,1); }
@@ -284,6 +300,17 @@ h1.big span { color: var(--leaf); }
     <div class="overlay" id="overlay">
       <button class="reset" id="resetview" type="button">Reset view</button>
       <button class="reset helpbtn" id="helpbtn" type="button" aria-pressed="true">Help: On</button>
+      <button class="reset menubtn" id="menubtn" type="button">Main menu</button>
+      <div class="confirm" id="confirm-exit" role="dialog" aria-modal="true" aria-labelledby="confirm-title" hidden>
+        <div class="cbox">
+          <h3 id="confirm-title">Leave this game?</h3>
+          <p>This game will end and you'll go back to the main menu.</p>
+          <div class="row">
+            <button class="primary" id="exit-no" type="button">Keep playing</button>
+            <button id="exit-yes" type="button">Main menu</button>
+          </div>
+        </div>
+      </div>
       <div class="hud" id="hud" hidden aria-live="polite">
         <div class="hs you" id="hs-you"><span class="nm" id="hn-you">You</span><b id="hp-you">0</b></div>
         <div class="hmsg" id="hud-msg"></div>
@@ -5823,7 +5850,7 @@ h1.big span { color: var(--leaf); }
   const panFor = x => (x / 7) * viewSide;
   function hopSound(x) {
     if (sound.hops >= 3) return;         // keep long sows from turning into a wall of noise
-    const s = playSound('hop', { rate: 0.95 + Math.random() * 0.2, gain: 0.5, pan: panFor(x) });
+    const s = playSound('hop', { rate: 0.95 + Math.random() * 0.2, gain: 0.2, pan: panFor(x) });
     if (!s) return;
     sound.hops++;
     s.src.onended = () => { sound.hops--; };
@@ -6455,14 +6482,36 @@ h1.big span { color: var(--leaf); }
     }
   }
   // Back button (Android app) / browser back / Escape: game -> title screen -> leave.
+  // Leaving mid-game asks first; a finished game goes straight back to the main menu.
+  const confirmEl = document.getElementById('confirm-exit');
+  let rePushOnStay = false;
+  function askExit(fromHistory = false) {
+    if (!game || game.over) { showTitle(); return; }
+    rePushOnStay = fromHistory;
+    confirmEl.hidden = false;
+    document.getElementById('exit-no').focus();
+  }
+  function stayInGame() {
+    confirmEl.hidden = true;
+    if (rePushOnStay) { try { history.pushState({ chococala: 'play' }, ''); } catch (e) {} }
+    rePushOnStay = false;
+  }
+  document.getElementById('menubtn').addEventListener('click', () => askExit());
+  document.getElementById('exit-no').addEventListener('click', stayInGame);
+  document.getElementById('exit-yes').addEventListener('click', () => { confirmEl.hidden = true; rePushOnStay = false; showTitle(); });
+
   window.chococalaBack = () => {
-    if (document.body.classList.contains('playing')) { showTitle(); return true; }
+    if (document.body.classList.contains('playing')) {
+      if (!confirmEl.hidden) stayInGame(); else askExit();
+      return true;
+    }
     if (nativeApp && nativeApp.exitApp) nativeApp.exitApp();
     return false;
   };
-  window.addEventListener('popstate', () => { if (document.body.classList.contains('playing')) showTitle(); });
+  window.addEventListener('popstate', () => { if (document.body.classList.contains('playing')) askExit(true); });
 
   function showTitle() {
+    confirmEl.hidden = true;
     clearTimeout(resultTimer);
     if (game) game = Object.assign({}, game, { over: true, busy: false });   // abandons any move still animating
     stopCelebration();
@@ -6514,6 +6563,7 @@ h1.big span { color: var(--leaf); }
   const AREA_KEY = { 1: 7, 2: 4, 3: 8, 4: 5, 5: 9, 6: 2, 7: 1, 8: 0 };
   document.addEventListener('keydown', e => {
     if (!titleEl.hidden || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (!confirmEl.hidden && e.key !== 'Escape') return;
     if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
     const k = e.key.toLowerCase();
     if (AREA_KEY[k] !== undefined) { tapCell(AREA_KEY[k]); e.preventDefault(); }
@@ -6523,7 +6573,7 @@ h1.big span { color: var(--leaf); }
     }
     else if (k === 'h') helpBtn.click();
     else if (k === 'r' && controls && !celeb.on) resetView();
-    else if (k === 'escape' && !document.fullscreenElement && document.body.classList.contains('playing')) showTitle();
+    else if (k === 'escape' && !document.fullscreenElement && document.body.classList.contains('playing')) window.chococalaBack();
   });
 
   try {
