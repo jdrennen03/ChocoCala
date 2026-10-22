@@ -30,7 +30,7 @@ The game needs WebGL, which every current desktop browser and Android phone supp
   - Browsers go full screen where they allow it.
   - **Main menu** (bottom-left), Back (Android) or <kbd>Esc</kbd> (desktop) leaves the game. Mid-game, it asks before quitting.
 - **2 players face to face:** lay the phone flat between you.
-  - When it's Player 2's turn, the camera swings over the board to their side, the chocobos turn to face them, and the HUD and buttons flip.
+  - When it's Player 2's turn, the camera passes over the top of the board to their side without rolling, so their side stays at their edge of the screen. The chocobos turn to face them, and the HUD, buttons and labels flip to read upright for them.
   - Player 2's corral faces them, and if Player 2 wins, the victory scene plays from their side.
 - **Sound:**
   - Each chocobo hop plays a sound.

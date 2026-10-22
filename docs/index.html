@@ -872,9 +872,21 @@ h1.big span { color: var(--leaf); }
     const c = viewSide > 0 ? 0 : Math.PI;
     controls.minAzimuthAngle = c - 1.2; controls.maxAzimuthAngle = c + 1.2;
   }
+  // Player 2 reads the phone from the opposite edge, so their view is rendered upside down (camera up = -Y):
+  // their side of the board then sits at their edge of the screen, just like Player 1's does.
+  function applyViewUp() {
+    camera.up.set(0, viewSide, 0);
+    controls.rotateSpeed = viewSide;   // keep drag-to-turn natural from Player 2's seat
+    // Labels, counts and chips are screen-facing sprites: turn them to read upright for the current player.
+    const rot = viewSide < 0 ? Math.PI : 0;
+    areaLabels.forEach(l => { l.material.rotation = rot; });
+    cellParts.forEach(part => { if (part) part.count.material.rotation = rot; });
+    if (marksGroup) marksGroup.children.forEach(m => { m.material.rotation = rot; });
+  }
   function resetView() {
     if (camTween) return;
     const view = viewFor(viewSide);
+    applyViewUp();
     controls.target.copy(view.target);
     camera.position.copy(view.pos);
     camera.lookAt(controls.target);
@@ -889,14 +901,15 @@ h1.big span { color: var(--leaf); }
     faceTarget = v > 0 ? 0 : Math.PI;
     document.getElementById('overlay').classList.toggle('flipped', v < 0);
     if (!animate || !renderer) { if (!animate) faceNow = faceTarget; resetView(); return Promise.resolve(); }
+    // Pitch the camera straight over the top of the board (in the y-z plane) without rolling it,
+    // so the board keeps its place on screen and the far player's side comes to their edge.
     const t0 = controls.target.clone();
-    const s0 = new THREE.Spherical().setFromVector3(camera.position.clone().sub(t0));
+    const off0 = camera.position.clone().sub(t0);
     const dest = viewFor(v);
-    const s1 = new THREE.Spherical().setFromVector3(dest.pos.clone().sub(dest.target));
-    let dTheta = s1.theta - s0.theta;
-    while (dTheta > Math.PI) dTheta -= Math.PI * 2;
-    while (dTheta < -Math.PI) dTheta += Math.PI * 2;
-    if (Math.abs(dTheta) < 0.01) dTheta = Math.PI;
+    const off1 = dest.pos.clone().sub(dest.target);
+    const r0 = off0.length(), r1 = off1.length();
+    const a0 = Math.atan2(off0.y, off0.z), a1 = Math.atan2(off1.y, off1.z);   // elevation angle around the x axis
+    const x0 = off0.x;
     controls.enabled = false;
     const start = performance.now(), dur = reduceMotion ? 1 : 1600;
     return new Promise(resolve => {
@@ -904,15 +917,15 @@ h1.big span { color: var(--leaf); }
         update(now) {
           const u = Math.min(1, (now - start) / dur), e = ease(u);
           const target = t0.clone().lerp(dest.target, e);
-          const sph = new THREE.Spherical(
-            s0.radius + (s1.radius - s0.radius) * e,
-            Math.max(0.08, s0.phi + (s1.phi - s0.phi) * e - Math.sin(Math.PI * u) * 0.6),
-            s0.theta + dTheta * e);
-          camera.position.setFromSpherical(sph).add(target);
+          const a = a0 + (a1 - a0) * e, r = r0 + (r1 - r0) * e;
+          camera.position.set(target.x + x0 * (1 - e), target.y + r * Math.sin(a), target.z + r * Math.cos(a));
+          camera.up.set(0, Math.cos(a), -Math.sin(a));   // continuous through the overhead point
           controls.target.copy(target);
           camera.lookAt(target);
           if (u >= 1) {
             camTween = null;
+            applyViewUp();
+            camera.lookAt(target);
             controls.enabled = true;
             setAzimuthLimits();
             controls.update();
@@ -1097,6 +1110,7 @@ h1.big span { color: var(--leaf); }
     const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
     s.renderOrder = 20;
     s.scale.set(0.42 * w / h, 0.42, 1);
+    s.material.rotation = viewSide < 0 ? Math.PI : 0;
     return s;
   }
 
@@ -1787,6 +1801,7 @@ h1.big span { color: var(--leaf); }
     document.getElementById('hud').hidden = true;
     camTween = null;
     viewSide = 1; faceTarget = faceNow = 0;
+    if (camera) applyViewUp();
     document.getElementById('overlay').classList.remove('flipped');
     if (nativeApp && nativeApp.setGameMode) {
       try { nativeApp.setGameMode(false); } catch (e) {}
