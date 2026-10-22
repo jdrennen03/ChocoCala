@@ -275,7 +275,8 @@ h1.big span { color: var(--leaf); }
       <li>If the last chocobo lands in your own corral, you immediately take another turn.</li>
       <li>If you overshoot, the extra chocobos continue along the other track: 6 → 4 → 7 → 2 → 8. The opponent's corral is skipped, so you never score for them. The red track is the mirror: 6 → 4 → 7 → 2 → 8 → red corral, overshooting onto 1 → 2 → 3 → 4 → 5.</li>
       <li>The game ends when no chocobos are left on the play area, or when a player is due to move and can't. A safety limit also ends it after 100 moves.</li>
-      <li><b>Objective:</b> finish with more jingly in your corral. Chocobos left on Areas at the end don't count.</li>
+      <li><b>End of game:</b> any chocobos still on your own Areas hop into your corral and count for you (1, 3, 5 for the green player; 6, 7, 8 for the red player). Chocobos left on the shared Areas 2 and 4 don't count.</li>
+      <li><b>Objective:</b> finish with more jingly in your corral.</li>
       <li><b>Classic mode:</b> every chocobo is worth 1 jingly. <b>Scoring mode:</b> colours have different values, and the second player gets more to make up for moving second:
         <ul>
           <li>Pink &amp; green (Adenium &amp; Citrullus): 3 first player, 4 second player</li>
@@ -431,11 +432,11 @@ h1.big span { color: var(--leaf); }
   const sumVals = (cells, b, p) => cells.reduce((s, i) => s + b[i].reduce((q, t) => q + val(t, p), 0), 0);
   const baseScore = (b, p) => sumVals([BASE[p]], b, p);
   const rowScore = (b, p) => sumVals(ROW[p], b, p);
-  const total = (b, p) => baseScore(b, p);
+  const total = (b, p) => baseScore(b, p);  // after the end-of-game sweep
 
   // ----- Rival AI: alpha-beta minimax, extra turns keep the same mover -----
   function evaluate(b, done) {
-    const d = (baseScore(b, 'ai') - baseScore(b, 'you')) + (done ? 0 : 0.25) * (rowScore(b, 'ai') - rowScore(b, 'you'));
+    const d = (baseScore(b, 'ai') - baseScore(b, 'you')) + (done ? 1 : 0.6) * (rowScore(b, 'ai') - rowScore(b, 'you'));
     return done ? d + (d > 0 ? 100 : d < 0 ? -100 : 0) : d;
   }
   function search(b, mover, depth, alpha, beta, moves) {
@@ -1246,7 +1247,7 @@ h1.big span { color: var(--leaf); }
       const bs = baseScore(b, p), rs = rowScore(b, p);
       document.getElementById('name-' + p).textContent = NAME(p);
       document.getElementById('pts-' + p).textContent = bs;
-      document.getElementById('sub-' + p).textContent = `jingly in corral · ${rs} more waiting on own Areas`;
+      document.getElementById('sub-' + p).textContent = `jingly in corral · +${rs} from own Areas at game end`;
       document.getElementById('plate-' + p).classList.toggle('active', game.turn === p && !game.over);
       document.getElementById('first-' + p).textContent = first === p ? 'Moves 1st' : 'Moves 2nd';
     }
@@ -1350,23 +1351,55 @@ h1.big span { color: var(--leaf); }
   function saveBank(v) { try { localStorage.setItem('mm-bank', String(v)); } catch {} }
   function showBank() { document.getElementById('bank').textContent = loadBank(); }
 
-  function finish() {
-    game.over = true; game.sel = null;
+  // End of game: each player's chocobos still on their own Areas hop into their corral and score.
+  // Player 1 / You sweeps Areas 1, 3, 5; Player 2 / Rival sweeps Areas 6, 7, 8. Shared Areas 2 and 4 don't count.
+  async function sweepRows() {
+    const g = game;
+    const moved = { you: 0, ai: 0 };
+    for (const p of ['you', 'ai']) {
+      for (const i of ROW[p]) {
+        const stack = game.b[i];
+        if (!stack.length) continue;
+        flash(i);
+        while (stack.length) {
+          const t = stack.pop();             // rear first, as in a normal move
+          const base = game.b[BASE[p]];
+          renderCell(i, game.b);
+          await hop(t, i, BASE[p], slotPos(BASE[p], base.length));
+          if (g !== game) return moved;
+          base.push(t);
+          renderCell(BASE[p], game.b);
+          moved[p] += val(t, p);
+        }
+      }
+    }
     render();
-    const you = total(game.b, 'you'), ai = total(game.b, 'ai');
+    return moved;
+  }
+
+  async function finish() {
+    game.over = true; game.sel = null; game.busy = true;
+    render();
+    const g = game;
     const boardEmpty = [0, 1, 2, 4, 5, 7, 8, 9].every(i => !game.b[i].length);
+    if (!boardEmpty) say('Game over! Chocobos left on each player\'s own Areas head home to their corral…');
+    const swept = await sweepRows();
+    if (g !== game) return;
+    game.busy = false;
+    const you = total(game.b, 'you'), ai = total(game.b, 'ai');
     const why = game.moves >= MAX_MOVES ? `The ${MAX_MOVES}-move limit was reached.`
       : boardEmpty ? 'No chocobos are left on the play area.'
       : `${NAME(game.turn)} ${settings.players === 1 && game.turn === 'you' ? 'have' : 'has'} no chocobos left to move.`;
+    const sweptNote = swept.you || swept.ai ? ` Leftovers added: ${NAME('you')} +${swept.you}, ${NAME('ai')} +${swept.ai}.` : '';
     const winner = you > ai ? 'you' : ai > you ? 'ai' : null;
     let earn = '';
     if (settings.players === 1) { saveBank(loadBank() + you); showBank(); earn = `+${you} jingly added to your running total`; }
     document.getElementById('result-title').textContent = !winner ? 'A draw!'
       : settings.players === 2 ? `${NAME(winner)} wins!` : winner === 'you' ? 'You win!' : 'The Rival wins';
-    document.getElementById('result-tally').textContent = `${why} ${NAME('you')} ${you} – ${NAME('ai')} ${ai} jingly.`;
+    document.getElementById('result-tally').textContent = `${why}${sweptNote} ${NAME('you')} ${you} – ${NAME('ai')} ${ai} jingly.`;
     document.getElementById('result-earn').textContent = earn;
     say(`${!winner ? 'An even match!' : settings.players === 2 ? `${NAME(winner)} wins! Their flock is dancing.`
-      : winner === 'you' ? 'Victory! Your flock is dancing in the corral.' : 'Defeat. The Rival\'s flock is celebrating.'} ${NAME('you')} ${you} – ${NAME('ai')} ${ai} jingly.${earn ? ' ' + earn + '.' : ''}`);
+      : winner === 'you' ? 'Victory! Your flock is dancing in the corral.' : 'Defeat. The Rival\'s flock is celebrating.'}${sweptNote} Final: ${NAME('you')} ${you} – ${NAME('ai')} ${ai} jingly.${earn ? ' ' + earn + '.' : ''}`);
     try { host.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' }); } catch (e) {}
     if (winner) {
       startCelebration(winner);

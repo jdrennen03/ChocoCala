@@ -37,7 +37,8 @@ The game needs WebGL, which every current desktop browser and Android phone supp
 - The opponent's corral is skipped, so you never score for them.
 - If your last chocobo lands in your own corral, you take another turn.
 - The game ends when the play area is empty, or when the player to move has no chocobos to pick up.
-- Highest jingly in their corral wins. Chocobos left on Areas don't count.
+- When the game ends, chocobos still on each player's own Areas hop into that player's corral and score for them: Areas 1, 3, 5 for the first player, Areas 6, 7, 8 for the second player. Chocobos left on the shared Areas 2 and 4 don't count.
+- Highest jingly in their corral wins.
 
 **Scoring mode values** (the second player gets more to make up for moving second):
 
